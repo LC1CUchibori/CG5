@@ -23,7 +23,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		dxCommon->PreDraw();
 
 
-
 		//描画終了
 		dxCommon->PostDraw();
 	}
