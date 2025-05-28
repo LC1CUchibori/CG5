@@ -38,15 +38,18 @@ void RootSignature::Create() {
 	rootSignature_ = rootSignature;
 }
 
+// 生成したRootSignatureを返す
 ID3D12RootSignature* RootSignature::Get()
 {
 	return rootSignature_;
 }
 
+// コンストラクタ
 RootSignature::RootSignature()
 {
 }
 
+// デストラクタ
 RootSignature::~RootSignature()
 {
 	if (rootSignature_) {

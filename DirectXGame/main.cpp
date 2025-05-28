@@ -1,12 +1,59 @@
 #include "KamataEngine.h"
 #include "Shader.h"
 #include "RootSignature.h"
+#include "PipelineState.h"
 
 #include <DirectXMath.h>
 #include <Windows.h>
 
 using namespace KamataEngine;
 using namespace DirectX;
+
+// 関数プロトタイプ宣言
+void SetupPipelineState(PipelineState& pipelineState, RootSignature& rs, Shader& vs, Shader& ps) {
+
+	// InputLayout------------------
+	D3D12_INPUT_ELEMENT_DESC inputElementDescs[1] = {};
+	inputElementDescs[0].SemanticName = "POSITION";
+	inputElementDescs[0].SemanticIndex = 0;
+	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
+
+	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
+	inputLayoutDesc.pInputElementDescs = inputElementDescs;
+	inputLayoutDesc.NumElements = _countof(inputElementDescs);
+
+	// BlendState -------------------------------
+	D3D12_BLEND_DESC blendDesc{};
+	// すべての色要素を書き込む
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	// RasterizerState -------------------------------
+	D3D12_RASTERIZER_DESC rasterizerDesc{};
+	// 裏面(反時計回り)をカリングする
+	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
+	// 塗りつぶしモードをソリッドにする(ワイヤーフレームなら D3D12_FILL_MODE_WIREFRAME)
+	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
+
+	// PSO(PipelineStateObject)の生成 -------------------------------
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
+	graphicsPipelineStateDesc.pRootSignature = rs.Get();                            // RootSignature
+	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;                              // InputLayout
+	graphicsPipelineStateDesc.VS = {vs.GetDxcBlob()->GetBufferPointer(), vs.GetDxcBlob()->GetBufferSize()}; // VertexShader
+	graphicsPipelineStateDesc.PS = {ps.GetDxcBlob()->GetBufferPointer(), ps.GetDxcBlob()->GetBufferSize()}; // PixelShader
+	graphicsPipelineStateDesc.BlendState = blendDesc;                                     // BlendState
+	graphicsPipelineStateDesc.RasterizerState = rasterizerDesc;  
+
+	graphicsPipelineStateDesc.NumRenderTargets = 1; // 1つのRTVに書き込む 複数同時にしようと思えばできる
+	graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+	// 利用するトポロジ(形状)のタイプ 三角形
+	graphicsPipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	// どのように画面に色を打ち込むかの設定(今は気にしなくていい)
+	graphicsPipelineStateDesc.SampleDesc.Count = 1;
+	graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
+
+	pipelineState.Create(graphicsPipelineStateDesc);
+}
 
 // Windowsアプリでのエントリーポイント(main関数)
 int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
@@ -29,28 +76,6 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	RootSignature rs;
 	rs.Create();
 
-	// InputLayout -------------------------------
-	D3D12_INPUT_ELEMENT_DESC inputElementDescs[1] = {};
-	inputElementDescs[0].SemanticName = "POSITION";
-	inputElementDescs[0].SemanticIndex = 0;
-	inputElementDescs[0].Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
-	inputElementDescs[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;
-	D3D12_INPUT_LAYOUT_DESC inputLayoutDesc{};
-	inputLayoutDesc.pInputElementDescs = inputElementDescs;
-	inputLayoutDesc.NumElements = _countof(inputElementDescs);
-
-	// BlendState -------------------------------
-	D3D12_BLEND_DESC blendDesc{};
-	// すべての色要素を書き込む
-	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-	// RasterizerState -------------------------------
-	D3D12_RASTERIZER_DESC rasterizerDesc{};
-	// 裏面(反時計回り)をカリングする
-	rasterizerDesc.CullMode = D3D12_CULL_MODE_BACK;
-	// 塗りつぶしモードをソリッドにする(ワイヤーフレームなら D3D12_FILL_MODE_WIREFRAME)
-	rasterizerDesc.FillMode = D3D12_FILL_MODE_SOLID;
-
 
 	// 頂点シェーダーの読み込みとコンパイル
 	Shader vs;
@@ -62,34 +87,16 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	ps.LoadDxc(L"Resources/shaders/TestPS.hlsl",L"ps_6_0");
 	assert(ps.GetDxcBlob() != nullptr);
 
+	PipelineState pipelineState;
+	SetupPipelineState(pipelineState, rs, vs, ps);
 
-	// PSO(PipelineStateObject)の生成 -------------------------------
-	D3D12_GRAPHICS_PIPELINE_STATE_DESC graphicsPipelineStateDesc{};
-	graphicsPipelineStateDesc.pRootSignature = rs.Get();                            // RootSignature
-	graphicsPipelineStateDesc.InputLayout = inputLayoutDesc;                              // InputLayout
-	graphicsPipelineStateDesc.VS = {vs.GetDxcBlob()->GetBufferPointer(), vs.GetDxcBlob()->GetBufferSize()}; // VertexShader
-	graphicsPipelineStateDesc.PS = {ps.GetDxcBlob()->GetBufferPointer(), ps.GetDxcBlob()->GetBufferSize()}; // PixelShader
-	graphicsPipelineStateDesc.BlendState = blendDesc;                                     // BlendState
-	graphicsPipelineStateDesc.RasterizerState = rasterizerDesc;                           // RasterizerState
 
-	// DepthStencilState追加 -----------------------
-	D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	depthStencilDesc.DepthEnable = FALSE;   // 深度テストを無効化
-	depthStencilDesc.StencilEnable = FALSE; // ステンシルテストを無効化
-	graphicsPipelineStateDesc.DepthStencilState = depthStencilDesc;
+	//// DepthStencilState追加 -----------------------
+	//D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
+	//depthStencilDesc.DepthEnable = FALSE;   // 深度テストを無効化
+	//depthStencilDesc.StencilEnable = FALSE; // ステンシルテストを無効化
+	//graphicsPipelineStateDesc.DepthStencilState = depthStencilDesc;
 
-	// 書き込むRTVの情報
-	graphicsPipelineStateDesc.NumRenderTargets = 1; // 1つのRTVに書き込む 複数同時にしようと思えばできる
-	graphicsPipelineStateDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
-	// 利用するトポロジ(形状)のタイプ 三角形
-	graphicsPipelineStateDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-	// どのように画面に色を打ち込むかの設定(今は気にしなくていい)
-	graphicsPipelineStateDesc.SampleDesc.Count = 1;
-	graphicsPipelineStateDesc.SampleMask = D3D12_DEFAULT_SAMPLE_MASK;
-	// 実際に生成 PSO生成
-	ID3D12PipelineState* graphicsPipelineState = nullptr;
-	HRESULT hr = dxCommon->GetDevice()->CreateGraphicsPipelineState(&graphicsPipelineStateDesc, IID_PPV_ARGS(&graphicsPipelineState));
-	assert(SUCCEEDED(hr));
 
 	// VertexResourceの生成 ----------
 	// 頂点リソース用のヒープの設定
@@ -108,7 +115,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
 	// 実際に頂点リソースを生成する
 	ID3D12Resource* vertexResource = nullptr;
-	hr = dxCommon->GetDevice()->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
+	HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
 	assert(SUCCEEDED(hr)); // うまくいかなかったときは起動できない
 
 	// 頂点バッファへのデータ転送 ----------
@@ -168,7 +175,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		// RootSignatureの設定
 		commandList->SetGraphicsRootSignature(rs.Get());
 		// PipelineStateの設定
-		commandList->SetPipelineState(graphicsPipelineState);
+		commandList->SetPipelineState(pipelineState.Get());
 		// VBVの設定する
 		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
 		// トポロジの設定
@@ -182,7 +189,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// 解放処理
 	vertexResource->Release();
-	graphicsPipelineState->Release();
+	/*graphicsPipelineState->Release();*/
 	//signatureBlob->Release();
 	/*rootSignature->Release();*/
 
