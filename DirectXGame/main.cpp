@@ -2,6 +2,7 @@
 #include "Shader.h"
 #include "RootSignature.h"
 #include "PipelineState.h"
+#include "VertexBuffer.h"
 
 #include <DirectXMath.h>
 #include <Windows.h>
@@ -87,36 +88,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	ps.LoadDxc(L"Resources/shaders/TestPS.hlsl",L"ps_6_0");
 	assert(ps.GetDxcBlob() != nullptr);
 
+	//　パイプラインステートの読み込みとコンパイル
 	PipelineState pipelineState;
 	SetupPipelineState(pipelineState, rs, vs, ps);
 
-
-	//// DepthStencilState追加 -----------------------
-	//D3D12_DEPTH_STENCIL_DESC depthStencilDesc{};
-	//depthStencilDesc.DepthEnable = FALSE;   // 深度テストを無効化
-	//depthStencilDesc.StencilEnable = FALSE; // ステンシルテストを無効化
-	//graphicsPipelineStateDesc.DepthStencilState = depthStencilDesc;
-
-
-	// VertexResourceの生成 ----------
-	// 頂点リソース用のヒープの設定
-	D3D12_HEAP_PROPERTIES uploadHeapProperties{};
-	uploadHeapProperties.Type = D3D12_HEAP_TYPE_UPLOAD; // CPUから書き込むヒープ
-	// 頂点リソースの設定
-	D3D12_RESOURCE_DESC vertexResourceDesc{};
-	vertexResourceDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER; // バッファ
-	vertexResourceDesc.Width = sizeof(Vector4) * 3;                 // リソースのサイズ。今回は Vector4を3頂点分
-	// バッファの場合はこれらは1にする決まり
-	vertexResourceDesc.Height = 1;
-	vertexResourceDesc.DepthOrArraySize = 1;
-	vertexResourceDesc.MipLevels = 1;
-	vertexResourceDesc.SampleDesc.Count = 1;
-	// バッファの場合はこれにする決まり
-	vertexResourceDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	// 実際に頂点リソースを生成する
-	ID3D12Resource* vertexResource = nullptr;
-	HRESULT hr = dxCommon->GetDevice()->CreateCommittedResource(&uploadHeapProperties, D3D12_HEAP_FLAG_NONE, &vertexResourceDesc, D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&vertexResource));
-	assert(SUCCEEDED(hr)); // うまくいかなかったときは起動できない
+	// VertexBufferの読み込みとコンパイル
+	VertexBuffer vb;
+	vb.Create(sizeof(Vector4) * 3, sizeof(Vector4));
 
 	// 頂点バッファへのデータ転送 ----------
 	// 頂点データ
@@ -129,21 +107,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 	// 頂点バッファへのデータ転送
 	Vector4* vertexData = nullptr;
 	// 書き込むためのアドレスを取得
-	vertexResource->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	vb.Get()->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
 	// 頂点データをコピー
 	std::memcpy(vertexData, vertices, sizeof(vertices));
 	// 書き込み終了
-	vertexResource->Unmap(0, nullptr);
+	vb.Get()->Unmap(0, nullptr);
 
-	// VertexBufferViewを作成する ----------
-	D3D12_VERTEX_BUFFER_VIEW vertexBufferView{};
-	// リソースの先頭アドレスから使う
-	vertexBufferView.BufferLocation = vertexResource->GetGPUVirtualAddress();
-	// 使用するリソースのサイズは頂点3つのサイズ
-	vertexBufferView.SizeInBytes = sizeof(XMFLOAT4) * 3;
-	// 1つの頂点のサイズ
-	vertexBufferView.StrideInBytes = sizeof(XMFLOAT4);
-
+	
 	// メインループ
 	while (true) {
 		// エンジンの更新
@@ -177,7 +147,7 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		// PipelineStateの設定
 		commandList->SetPipelineState(pipelineState.Get());
 		// VBVの設定する
-		commandList->IASetVertexBuffers(0, 1, &vertexBufferView);
+		commandList->IASetVertexBuffers(0, 1, vb.GetView());
 		// トポロジの設定
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 頂点数、インデックス数、インデックスの開始位置、インデックスのオフセット
@@ -187,38 +157,8 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		dxCommon->PostDraw();
 	}
 
-	// 解放処理
-	vertexResource->Release();
-	/*graphicsPipelineState->Release();*/
-	//signatureBlob->Release();
-	/*rootSignature->Release();*/
-
 	// エンジンの終了処理
 	KamataEngine::Finalize();
 
 	return 0;
 }
-
-//ID3DBlob* CompileShader(const std::wstring& filePath, const std::string& shaderModel) {
-//	ID3DBlob* shaderBlob = nullptr;
-//	ID3DBlob* errorBlob = nullptr;
-//
-//
-//	HRESULT hr = D3DCompileFromFile(
-//		filePath.c_str(), // シェーダーファイル名
-//		nullptr,
-//		D3D_COMPILE_STANDARD_FILE_INCLUDE,
-//		"main", shaderModel.c_str(),
-//		D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION,
-//		0, &shaderBlob, &errorBlob);
-//
-//	if (FAILED(hr)) {
-//		if (errorBlob) {
-//			OutputDebugStringA(reinterpret_cast<char*>(errorBlob->GetBufferPointer()));
-//			errorBlob->Release();
-//		}
-//		assert(false);
-//	}
-//
-//	return shaderBlob;
-//}
