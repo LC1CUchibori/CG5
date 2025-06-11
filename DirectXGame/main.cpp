@@ -3,6 +3,7 @@
 #include "RootSignature.h"
 #include "PipelineState.h"
 #include "VertexBuffer.h"
+#include "IndexBuffer.h"
 
 #include <DirectXMath.h>
 #include <Windows.h>
@@ -85,33 +86,63 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// ピクセルシェーダーの読み込みとコンパイル
 	Shader ps;
-	ps.LoadDxc(L"Resources/shaders/TestPS.hlsl",L"ps_6_0");
+	ps.LoadDxc(L"Resources/shaders/TestPS.hlsl", L"ps_6_0");
 	assert(ps.GetDxcBlob() != nullptr);
 
 	//　パイプラインステートの読み込みとコンパイル
 	PipelineState pipelineState;
 	SetupPipelineState(pipelineState, rs, vs, ps);
 
-	// VertexBufferの読み込みとコンパイル
-	VertexBuffer vb;
-	vb.Create(sizeof(Vector4) * 3, sizeof(Vector4));
-
-	// 頂点バッファへのデータ転送 ----------
-	// 頂点データ
-	Vector4 vertices[3] = {
-		{-0.5f, -0.5f, 0.0f, 1.0f}, // 左下
-		{0.0f,  0.5f,  0.0f, 1.0f}, // 上
-		{0.5f,  -0.5f, 0.0f, 1.0f}  // 右下
+	struct VertexData
+	{
+		Vector4 position;
 	};
 
-	// 頂点バッファへのデータ転送
-	Vector4* vertexData = nullptr;
-	// 書き込むためのアドレスを取得
-	vb.Get()->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
-	// 頂点データをコピー
-	std::memcpy(vertexData, vertices, sizeof(vertices));
-	// 書き込み終了
-	vb.Get()->Unmap(0, nullptr);
+	// 頂点データ
+	VertexData vertices[] = {
+		{0.0f, 0.5f, 0.0f, 1.0f}, // 左下
+		{0.5f,  -0.5f,  0.0f, 1.0f}, // 上
+		{-0.5f,  -0.5f, 0.0f, 1.0f}  // 右下
+	};
+
+	// VertexBufferの読み込みとコンパイル
+	VertexBuffer vb;
+	//vb.Create(sizeof(Vector4) * 3, sizeof(Vector4));
+	vb.Create(sizeof(vertices), sizeof(vertices[0]));
+
+	// 頂点リソースにデータを書き込む
+	VertexData* pGpuVertices = nullptr;
+	vb.Get()->Map(0, nullptr, reinterpret_cast<void**>(&pGpuVertices));
+
+	for (int i = 0; i < _countof(vertices); ++i) {
+		pGpuVertices[i] = vertices[i];
+	}
+
+	// 頂点インデックスデータの準備
+	uint16_t indices[] = {
+		0,1,2
+	};
+
+	// IndexBufferの生成
+	IndexBuffer ib;
+	ib.Create(sizeof(indices), sizeof(indices[0]));
+
+	// 頂点インデックスリソースにデータを書き込む
+	uint16_t* pGpuIndices = nullptr;
+	ib.Get()->Map(0, nullptr, reinterpret_cast<void**>(&pGpuIndices));
+
+	for (int i = 0; i < _countof(indices); ++i) {
+		pGpuIndices[i] = indices[i];
+	}
+
+	//// 頂点バッファへのデータ転送
+	//Vector4* vertexData = nullptr;
+	//// 書き込むためのアドレスを取得
+	//vb.Get()->Map(0, nullptr, reinterpret_cast<void**>(&vertexData));
+	//// 頂点データをコピー
+	//std::memcpy(vertexData, vertices, sizeof(vertices));
+	//// 書き込み終了
+	//vb.Get()->Unmap(0, nullptr);
 
 	
 	// メインループ
@@ -148,10 +179,13 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 		commandList->SetPipelineState(pipelineState.Get());
 		// VBVの設定する
 		commandList->IASetVertexBuffers(0, 1, vb.GetView());
+
+		commandList->IASetIndexBuffer(ib.GetView());
 		// トポロジの設定
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		// 頂点数、インデックス数、インデックスの開始位置、インデックスのオフセット
-		commandList->DrawInstanced(3, 1, 0, 0);
+		//commandList->DrawInstanced(3, 1, 0, 0);
+		commandList->DrawIndexedInstanced(_countof(indices), 1, 0, 0, 0);
 
 		// 描画終了
 		dxCommon->PostDraw();
