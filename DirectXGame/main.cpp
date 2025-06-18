@@ -100,9 +100,9 @@ int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
 
 	// 頂点データ
 	VertexData vertices[] = {
-		{0.0f, 0.5f, 0.0f, 1.0f}, // 左下
-		{0.5f,  -0.5f,  0.0f, 1.0f}, // 上
-		{-0.5f,  -0.5f, 0.0f, 1.0f}  // 右下
+		{ -1.0f, -1.0f, 0.0f, 1.0f }, // 左下
+		{ -1.0f,  3.0f, 0.0f, 1.0f }, // 左上
+		{  3.0f, -1.0f, 0.0f, 1.0f }
 	};
 
 	// VertexBufferの読み込みとコンパイル
