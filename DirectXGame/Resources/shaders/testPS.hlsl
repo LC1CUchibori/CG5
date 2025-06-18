@@ -1,4 +1,16 @@
-float4 main() : SV_TARGET
+#include "Test.hlsli"
+
+struct PixelShaderOutput
 {
-    return float32_t4(1.0f, 1.0f, 1.0f, 1.0f);
-}
+    
+};
+
+PixelShaderOutput main(VertexShaderOutput input)
+{
+    PixelShaderOutput output;
+    float32_t2 uv = input.texcoord;
+    
+    output.color = float32_t4(uv.x, uv.y, 0.0f, 1.0f);
+    
+    return output;
+};
