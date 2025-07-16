@@ -6,6 +6,7 @@
 #include "IndexBuffer.h"
 #include "WorldTransformEx.h"
 
+
 #include <DirectXMath.h>
 #include <Windows.h>
 
@@ -90,7 +91,7 @@ ID3D12Resource* CreateRenderTextureResource(ID3D12Device* device, uint32_t width
 
 	// 4.RenderTextureResourceの生成
 	ID3D12Resource* resource = nullptr;
-	HRESULT hr = device->CreateCommittedResource(
+	[[maybe_unused]]HRESULT hr = device->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -128,7 +129,7 @@ ID3D12Resource* CreateDepthStencilTextureResource(ID3D12Device* device, int32_t 
 
 	// 3.Resourceの生成
 	ID3D12Resource* resource = nullptr;
-	HRESULT hr = device->CreateCommittedResource(
+	[[maybe_unused]]HRESULT hr = device->CreateCommittedResource(
 		&heapProPerties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
